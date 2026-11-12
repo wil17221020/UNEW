@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RutaFlota</title>
+<meta name="description" content="Prototipo de app de viajes para una flota de vehículos de alquiler en Santo Domingo.">
+<meta name="theme-color" content="#0C7566">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RutaFlota">
+<meta property="og:title" content="RutaFlota · prototipo">
+<meta property="og:description" content="App de viajes para pasajeros y conductores de la flota, con panel para la oficina.">
+<meta property="og:image" content="icons/icon-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: app de viajes a pantalla completa. El mapa ocupa todo; la hoja inferior (panel lateral en escritorio) lleva el flujo; menú lateral y páginas superpuestas. El panel de la flota es una vista aparte (#flota). */
+:root{
+  --bg:#EDF1F0; --surface:#FFFFFF; --surface-2:#F2F5F4; --ink:#12201E; --muted:#5A6A67; --line:#DCE3E1;
+  --accent:#0C7566; --accent-soft:#D8EEE8; --accent-ink:#FFFFFF;
+  --btn:#111A18; --btn-ink:#FFFFFF;
+  --signal:#C97A12; --signal-soft:#FBEBD3;
+  --danger:#C23D2B; --danger-soft:#F8DED9; --ok:#2B8A55; --ok-soft:#DCF0E3;
+  --land:#E3E9E6; --street:#FFFFFF; --avenue:#F3D292; --sea:#B7D5E0; --river:#A3C6D3; --label:#41524F;
+  --plate-band:#1D4FA0; --scrim:rgba(10,18,17,.45);
+  --shadow:0 2px 6px rgba(18,32,30,.08),0 12px 32px rgba(18,32,30,.14);
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1413; --surface:#142020; --surface-2:#1B2928; --ink:#E3ECEA; --muted:#93A6A2; --line:#2A3A38;
+  --accent:#38BCA6; --accent-soft:#163430; --accent-ink:#04201B;
+  --btn:#EAF1EF; --btn-ink:#0C1413;
+  --signal:#F0A43E; --signal-soft:#3A2C17;
+  --danger:#EF6450; --danger-soft:#3D1F1A; --ok:#4CC488; --ok-soft:#173326;
+  --land:#16201F; --street:#243331; --avenue:#5C4A24; --sea:#0D2932; --river:#12313B; --label:#A9BBB7;
+  --plate-band:#2F63B8; --scrim:rgba(0,0,0,.55); --shadow:0 2px 6px rgba(0,0,0,.35),0 12px 32px rgba(0,0,0,.45); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1413; --surface:#142020; --surface-2:#1B2928; --ink:#E3ECEA; --muted:#93A6A2; --line:#2A3A38;
+  --accent:#38BCA6; --accent-soft:#163430; --accent-ink:#04201B;
+  --btn:#EAF1EF; --btn-ink:#0C1413;
+  --signal:#F0A43E; --signal-soft:#3A2C17;
+  --danger:#EF6450; --danger-soft:#3D1F1A; --ok:#4CC488; --ok-soft:#173326;
+  --land:#16201F; --street:#243331; --avenue:#5C4A24; --sea:#0D2932; --river:#12313B; --label:#A9BBB7;
+  --plate-band:#2F63B8; --scrim:rgba(0,0,0,.55); --shadow:0 2px 6px rgba(0,0,0,.35),0 12px 32px rgba(0,0,0,.45); color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body.app-mode{overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ---------- App ---------- */
+#map-cv{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--land)}
+.fab{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));width:46px;height:46px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;z-index:6}
+.earn{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--btn);color:var(--btn-ink);border:0;border-radius:999px;padding:9px 18px;font-family:var(--f-display);font-stretch:88%;font-weight:800;font-size:20px;box-shadow:var(--shadow);z-index:6;font-variant-numeric:tabular-nums;white-space:nowrap}
+.earn small{font-family:var(--f-body);font-weight:500;font-size:11px;opacity:.7;margin-left:6px}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:min(72dvh,620px);overflow:auto;overscroll-behavior:contain;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -6px 30px rgba(10,20,18,.18);z-index:5;
+  padding-top:22px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.sheet::before{content:"";position:absolute;top:8px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:4px;background:var(--line)}
+@media (min-width:900px){
+  .sheet{left:calc(16px + env(safe-area-inset-left,0px));right:auto;top:76px;bottom:16px;width:410px;max-height:none;border-radius:18px;box-shadow:var(--shadow);padding-top:20px;padding-bottom:20px;padding-left:20px;padding-right:20px}
+  .sheet::before{display:none}
+  .sheet.fit{bottom:auto;max-height:calc(100% - 92px)}
+}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sh-title{font-family:var(--f-display);font-stretch:90%;font-weight:750;font-size:24px;line-height:1.12;margin:2px 0 0;text-wrap:balance}
+.muted{color:var(--muted);margin:0}
+.fine{font-size:12.5px;color:var(--muted);margin:0}
+.lbl{font-size:12.5px;font-weight:600;color:var(--muted)}
+
+.btn{border:1px solid transparent;border-radius:12px;padding:13px 18px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s,filter .15s;text-decoration:none}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--btn);color:var(--btn-ink)}
+.btn.primary:hover{filter:brightness(1.15)}
+.btn.go{background:var(--accent);color:var(--accent-ink);font-size:17px;padding:16px}
+.btn.ghost{background:var(--surface-2);color:var(--ink)}
+.btn.ghost:hover{filter:brightness(.97)}
+.btn.danger{background:var(--danger-soft);color:var(--danger)}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:9px}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.link{border:0;background:none;color:var(--accent);font-weight:600;padding:4px;font-size:inherit}
+
+.welcome{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.role{display:flex;align-items:center;gap:14px;border:0;background:var(--surface-2);border-radius:16px;padding:16px;text-align:left;width:100%}
+.role:hover{filter:brightness(.97)}
+.role b{display:block;font-size:17px;font-weight:700}
+.role small{color:var(--muted);font-size:13px}
+.role > span:nth-child(2){flex:1;min-width:0}
+.role-ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none}
+.role-ic.p{background:var(--accent-soft);color:var(--accent)}
+.role-ic.d{background:var(--signal-soft);color:var(--signal)}
+.chev{color:var(--muted);font-size:22px}
+.back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--muted);font-weight:600;padding:0;align-self:flex-start}
+.acct{display:flex;align-items:center;gap:12px;border:0;border-bottom:1px solid var(--line);background:none;padding:12px 2px;text-align:left;width:100%}
+.acct:last-child{border-bottom:0}
+.acct b{display:block;font-weight:600}
+.acct small{display:block;color:var(--muted);font-size:12.5px}
+.acct > span:nth-child(2){flex:1;min-width:0}
+
+.search-pill{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:14px;padding:4px 14px}
+.search-pill input{flex:1;min-width:0;border:0;background:none;padding:12px 0;font-size:17px;font-weight:600}
+.search-pill input::placeholder{color:var(--ink);opacity:.8}
+.search-pill input:focus{outline:none}
+.search-pill:focus-within{box-shadow:0 0 0 2px var(--accent)}
+.pickup{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.pickup select{flex:1;min-width:0;border:0;background:var(--surface-2);border-radius:10px;padding:8px 10px;font-weight:600}
+.sugg{display:flex;flex-direction:column}
+.sugg-item{display:flex;align-items:center;gap:14px;border:0;border-bottom:1px solid var(--line);background:none;padding:11px 2px;text-align:left}
+.sugg-item:last-child{border-bottom:0}
+.sugg-item b{display:block;font-weight:600}
+.sugg-item small{color:var(--muted);font-size:12.5px}
+.s-ic{width:36px;height:36px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;flex:none;color:var(--ink)}
+.empty{color:var(--muted);font-size:13.5px;margin:6px 0}
+.trip-route{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 8px;background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.rt-rows{display:flex;flex-direction:column;gap:9px;min-width:0}
+.rt-row{display:flex;gap:12px;align-items:center;min-width:0}
+.rt-row small{display:block;font-size:11px;color:var(--muted);line-height:1.2}
+.rt-row b{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:11px;height:11px;flex:none}
+.dot.o{border-radius:50%;border:3px solid var(--accent);background:var(--surface)}
+.dot.d{background:var(--ink);border-radius:2px}
+.rt-meta{font-size:13px;color:var(--muted)}
+.cats{display:flex;flex-direction:column;gap:6px}
+.cat{display:grid;grid-template-columns:50px 1fr auto;align-items:center;gap:10px;border:2px solid transparent;background:var(--surface);border-radius:14px;padding:8px 12px 8px 6px;text-align:left}
+.cat.on{border-color:var(--ink);background:var(--surface-2)}
+.cat b{font-weight:700;font-size:15.5px}
+.cat small{display:block;font-size:12.5px;color:var(--muted)}
+.cat-px{font-weight:700;font-variant-numeric:tabular-nums}
+.cat-ic{display:flex;justify-content:center;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:500}
+.chip.on{border-color:var(--ink);background:var(--surface-2);font-weight:650}
+.scanbar{height:4px;border-radius:4px;background:var(--surface-2);overflow:hidden;position:relative}
+.scanbar::after{content:"";position:absolute;inset:0 auto 0 0;width:35%;background:var(--accent);border-radius:4px;animation:scan 1.4s ease-in-out infinite}
+@keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(290%)}}
+.drv-card{display:flex;align-items:center;gap:12px}
+.av{width:46px;height:46px;border-radius:50%;background:var(--signal-soft);color:var(--signal);display:grid;place-items:center;font-weight:700;flex:none}
+.av.p{background:var(--accent-soft);color:var(--accent)}
+.dc-tx{flex:1;min-width:0}
+.dc-tx b{display:block;font-weight:650}
+.dc-tx small{display:block;color:var(--muted);font-size:12.5px}
+.plate{font-family:var(--f-mono);font-weight:600;font-size:12.5px;letter-spacing:.06em;background:#FFFFFF;color:#111111;border:1.5px solid #2A2A2A;border-radius:4px;padding:10px 7px 3px;position:relative;white-space:nowrap;line-height:1;flex:none}
+.plate::before{content:"REP. DOMINICANA";position:absolute;inset:0 0 auto;height:7px;background:var(--plate-band);color:#FFFFFF;font-size:5px;letter-spacing:.12em;line-height:7px;text-align:center;border-radius:2px 2px 0 0}
+.pin-box{background:var(--surface-2);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px}
+.pin-box span{font-size:13px;font-weight:600}
+.pin-box small{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.pin{font-family:var(--f-mono);font-size:26px;letter-spacing:.16em;grid-row:1/2;grid-column:2}
+.row-actions{display:flex;gap:8px}
+.row-actions .btn{flex:1}
+.prog{height:6px;border-radius:9px;background:var(--surface-2);overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s linear}
+.big-fare{font-family:var(--f-display);font-stretch:85%;font-weight:800;font-size:42px;line-height:1;font-variant-numeric:tabular-nums}
+.lines{margin:0;display:flex;flex-direction:column;gap:5px;border-top:1px dashed var(--line);padding-top:10px}
+.lines div{display:flex;justify-content:space-between;gap:10px;font-size:13.5px}
+.lines dt{color:var(--muted)}
+.lines dd{margin:0;font-variant-numeric:tabular-nums}
+.pay-line{font-size:13.5px;background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.stars{display:flex;gap:4px}
+.stars button{border:0;background:none;font-size:32px;line-height:1;color:var(--line);padding:2px}
+.stars button.on{color:var(--signal)}
+
+.offer-top{display:flex;justify-content:space-between;align-items:center}
+.offer-sec{font-family:var(--f-mono);font-weight:600;font-size:13px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 11px}
+.offer-bar{height:5px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.offer-bar i{display:block;height:100%;background:var(--accent)}
+.status-row{display:flex;align-items:center;gap:12px}
+.status-row div{flex:1;min-width:0}
+.status-row b{display:block;font-size:17px}
+.status-row small{color:var(--muted);font-size:13px}
+.off-dot{width:12px;height:12px;border-radius:50%;background:var(--muted);flex:none}
+.pulse{width:12px;height:12px;border-radius:50%;background:var(--ok);flex:none;animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface-2);border-radius:12px;padding:9px 11px;min-width:0}
+.stat small{display:block;font-size:11.5px;color:var(--muted)}
+.stat b{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bal{border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.bal.owe{background:var(--signal-soft)}
+.bal.credit{background:var(--ok-soft)}
+.bal b{font-size:18px;font-variant-numeric:tabular-nums}
+.bal small{font-size:12.5px;color:var(--muted)}
+.done-banner{background:var(--ok-soft);border-radius:14px;padding:11px 14px;font-size:13.5px}
+.done-banner b{font-size:15px}
+.pin-entry{display:flex;gap:8px}
+.pin-entry input{flex:1;min-width:0;font-family:var(--f-mono);font-size:24px;letter-spacing:.3em;text-align:center;border:2px solid var(--line);border-radius:12px;background:var(--surface-2);padding:8px}
+.pin-entry input:focus{border-color:var(--ink);outline:none}
+.err{color:var(--danger);font-size:13.5px;margin:0;min-height:1em}
+.hint{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:7px 11px;margin:0}
+
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:min(86vw,340px);background:var(--surface);z-index:21;display:flex;flex-direction:column;
+  padding-top:calc(22px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:18px;gap:6px;overflow:auto;box-shadow:var(--shadow)}
+.dr-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.dr-head b{display:block;font-family:var(--f-display);font-stretch:90%;font-size:20px;font-weight:750}
+.dr-head small{color:var(--muted);font-size:12.5px}
+.dr-item{display:flex;align-items:center;gap:14px;border:0;background:none;padding:12px 4px;border-radius:10px;text-align:left;font-weight:600;font-size:15.5px;width:100%}
+.dr-item:hover{background:var(--surface-2)}
+.dr-item svg{flex:none;color:var(--muted)}
+.dr-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.page{position:fixed;inset:0;background:var(--bg);z-index:22;overflow:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.page-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding-block:10px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));z-index:1}
+.page-h h2{font-family:var(--f-display);font-stretch:90%;font-size:20px;font-weight:750;margin:0}
+.icon-btn{width:42px;height:42px;border:0;border-radius:50%;background:none;display:grid;place-items:center}
+.icon-btn:hover{background:var(--surface-2)}
+.page-b{max-width:560px;margin:0 auto;padding-block:16px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.list-row{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.list-row:last-child{border-bottom:0}
+.list-row div{flex:1;min-width:0}
+.list-row b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-row small{display:block;color:var(--muted);font-size:12.5px}
+.list-row .amt{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;flex:none}
+.list-row .amt small{font-weight:400}
+.meter{height:8px;border-radius:8px;background:var(--surface-2);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+.meter i.hot{background:var(--signal)}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.kv span{color:var(--muted)}
+.kv b{font-variant-numeric:tabular-nums}
+
+/* ---------- Panel de flota ---------- */
+.fleet{min-height:100%}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in,.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;padding-block:10px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand b{font-family:var(--f-display);font-stretch:88%;font-weight:800;font-size:20px;display:block;line-height:1.1}
+.brand small{color:var(--muted);font-size:12px}
+.note{margin:0;padding-block:12px;color:var(--muted);font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.kpi small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi b{font-family:var(--f-display);font-stretch:88%;font-weight:750;font-size:24px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kpi em{font-style:normal;font-size:12px;color:var(--muted)}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+@media (max-width:900px){.fgrid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;min-width:0}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.card-h h2{font-family:var(--f-display);font-stretch:90%;font-size:16px;font-weight:750;margin:0}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.fmap{height:420px;position:relative;border-radius:0 0 14px 14px;overflow:hidden}
+.fmap canvas{display:block;width:100%;height:100%}
+.alerts,.feed{padding:8px 16px 12px;display:flex;flex-direction:column;gap:6px}
+.feed{max-height:250px;overflow:auto}
+.alert{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:8px 10px;font-size:13px}
+.alert.sos{background:var(--danger-soft)}
+.alert.maint{background:var(--signal-soft)}
+.alert div{flex:1;min-width:0}
+.alert b{display:block}
+.alert small{color:var(--muted)}
+.feed p{margin:0;font-size:12.5px;display:flex;gap:10px}
+.feed time{color:var(--muted);font-variant-numeric:tabular-nums;flex:none;width:76px;white-space:nowrap}
+.subtabs{display:flex;gap:4px;flex-wrap:wrap}
+.subtabs button{border:0;background:none;padding:6px 10px;border-radius:8px;font-weight:600;color:var(--muted);font-size:14px}
+.subtabs button.on{background:var(--accent-soft);color:var(--accent)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-busy{background:var(--signal-soft);color:var(--signal)}
+.p-off{background:var(--surface-2);color:var(--muted)}
+.p-bad{background:var(--danger-soft);color:var(--danger)}
+.p-acc{background:var(--accent-soft);color:var(--accent)}
+.owe{color:var(--signal);font-weight:600}
+.cred{color:var(--ok);font-weight:600}
+.bar{height:8px;background:var(--surface-2);border-radius:8px;overflow:hidden;width:140px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar i.hot{background:var(--signal)}
+.tarifas{padding:16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:760px){.tarifas{grid-template-columns:1fr}}
+.tf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field select,.field input{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 12px;width:100%}
+.preview{background:var(--surface-2);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.preview div{display:flex;justify-content:space-between}
+.preview b{font-variant-numeric:tabular-nums}
+
+.toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%) translateY(-10px);opacity:0;background:var(--btn);color:var(--btn-ink);padding:10px 16px;border-radius:12px;font-size:13.5px;font-weight:500;transition:.25s;z-index:40;max-width:calc(100% - 32px);pointer-events:none;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.modal{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:30;padding:16px}
+.modal-box{background:var(--surface);border-radius:16px;padding:20px;width:min(100%,380px);display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
+.modal-box h3{margin:0;font-family:var(--f-display);font-stretch:90%;font-size:20px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="map-cv" aria-label="Mapa de Santo Domingo"></canvas>
+  <button class="fab" id="menu-btn" data-act="menu" aria-label="Abrir menú" hidden>
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <button class="earn" id="earn" data-act="page" data-arg="earn" hidden></button>
+  <section class="sheet" id="sheet" aria-live="polite"></section>
+  <div class="scrim" id="scrim" data-act="menu-close" hidden></div>
+  <nav class="drawer" id="drawer" aria-label="Menú" hidden></nav>
+  <div class="page" id="page" hidden></div>
+</div>
+
+<div id="fleet" class="fleet" hidden>
+  <header class="top">
+    <div class="top-in">
+      <div class="brand">
+        <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="var(--accent)"/><path d="M9 24c0-6 16-4 16-11a4 4 0 0 0-8 0" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round"/><circle cx="9" cy="24" r="2.6" fill="var(--accent-ink)"/><circle cx="17" cy="13" r="2.2" fill="var(--signal)"/></svg>
+        <div><b>RutaFlota · Oficina</b><small>Panel de la flota</small></div>
+      </div>
+      <button class="btn ghost sm" data-act="reset">Reiniciar demo</button>
+      <button class="btn primary sm" data-act="go-app">Abrir la app</button>
+    </div>
+  </header>
+  <div class="wrap">
+    <p class="note">Datos de ejemplo. Los viajes que pides o atiendes en la app aparecen aquí, junto con pasajeros simulados.</p>
+    <div class="kpis" id="kpis"></div>
+    <div class="fgrid">
+      <div class="card">
+        <div class="card-h"><h2>Mapa en vivo</h2>
+          <div class="legend"><span><i style="background:var(--ok)"></i>Disponible</span><span><i style="background:var(--signal)"></i>En servicio</span><span><i style="background:var(--muted)"></i>Desconectado</span></div>
+        </div>
+        <div class="fmap"><canvas id="fleet-map"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Alertas</h2></div>
+        <div class="alerts" id="alerts"></div>
+        <div class="card-h" style="border-top:1px solid var(--line)"><h2>Actividad</h2></div>
+        <div class="feed" id="feed"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:32px">
+      <div class="card-h">
+        <nav class="subtabs" id="subtabs">
+          <button data-act="ftab" data-arg="veh" class="on">Vehículos</button>
+          <button data-act="ftab" data-arg="drv">Conductores</button>
+          <button data-act="ftab" data-arg="trips">Viajes</button>
+          <button data-act="ftab" data-arg="corp">Corporativos</button>
+          <button data-act="ftab" data-arg="fares">Tarifas</button>
+        </nav>
+      </div>
+      <div id="ftab"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(()=>{
+'use strict';
+const SPEED=0.45, WANDER=0.1, RIVER=11.25, BRIDGE_Y=3;
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'RD$ '+Math.round(n).toLocaleString('en-US');
+const clock=t=>new Date(t).toLocaleTimeString('es-DO',{hour:'numeric',minute:'2-digit'});
+const now=()=>Date.now();
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const man=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+const mins=km=>Math.max(1,Math.round(km/22*60));
+const norm=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const initials=n=>n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const first=n=>n.split(' ')[0];
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}};
+
+const I={
+  pin:'<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 16s5-4.6 5-8.5A5 5 0 0 0 4 7.5C4 11.4 9 16 9 16z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="7.5" r="1.8" fill="currentColor"/></svg>',
+  search:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M13.5 13.5 17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  person:'<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="currentColor"/></svg>',
+  wheel:'<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M3.8 11h5.8M14.4 11h5.8M12 14.4v5.8" stroke="currentColor" stroke-width="2.4"/></svg>',
+  back:'<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M14 4 7 11l7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  clock:'<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 5.5V9l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  wallet:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="5" width="15" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 10.5h4.5" stroke="currentColor" stroke-width="1.8"/></svg>',
+  car:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 13v-2.5L5 6h10l2 4.5V13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6.5" cy="14" r="1.6" fill="currentColor"/><circle cx="13.5" cy="14" r="1.6" fill="currentColor"/></svg>',
+  chart:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 17V9M8 17V4M13 17v-6M18 17v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  swap:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h11l-3-3M16 13H5l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  office:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 7h2M11 7h2M7 11h2M11 11h2" stroke="currentColor" stroke-width="1.8"/></svg>',
+  reload:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-2-4.5M16 3v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  out:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M8 4H4v12h4M12 6l4 4-4 4M16 10H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const logo=(n=40)=>`<svg width="${n}" height="${n}" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="var(--accent)"/><path d="M9 24c0-6 16-4 16-11a4 4 0 0 0-8 0" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round"/><circle cx="9" cy="24" r="2.6" fill="var(--accent-ink)"/><circle cx="17" cy="13" r="2.2" fill="var(--signal)"/></svg>`;
+
+const PLACES=[
+ {id:'piantini',name:'Piantini',sub:'Av. Abraham Lincoln',x:7,y:4.5},
+ {id:'naco',name:'Naco',sub:'Av. Tiradentes',x:8,y:5},
+ {id:'colonial',name:'Zona Colonial',sub:'Calle El Conde',x:10.5,y:1.5},
+ {id:'gazcue',name:'Gazcue',sub:'Av. Independencia',x:9,y:2},
+ {id:'malecon',name:'Malecón',sub:'Av. George Washington',x:7.5,y:1},
+ {id:'bellavista',name:'Bella Vista',sub:'Av. Sarasota',x:5.5,y:3},
+ {id:'agora',name:'Ágora Mall',sub:'Av. John F. Kennedy',x:6.5,y:5.5},
+ {id:'bluemall',name:'Blue Mall',sub:'Av. Winston Churchill',x:6,y:4.5},
+ {id:'losprados',name:'Los Prados',sub:'Av. Núñez de Cáceres',x:4.5,y:6},
+ {id:'arroyohondo',name:'Arroyo Hondo',sub:'Av. República de Colombia',x:5.5,y:8},
+ {id:'olimpico',name:'Centro Olímpico',sub:'Av. 27 de Febrero',x:8.5,y:4},
+ {id:'uasd',name:'UASD',sub:'Ciudad Universitaria',x:8,y:3},
+ {id:'ozama',name:'Ensanche Ozama',sub:'Av. Sabana Larga',x:12.5,y:3.5},
+ {id:'megacentro',name:'Megacentro',sub:'Av. San Vicente de Paúl',x:13.5,y:5},
+ {id:'faro',name:'Faro a Colón',sub:'Av. España',x:12.5,y:1.5},
+];
+const P=Object.fromEntries(PLACES.map(p=>[p.id,p]));
+const AVES_H=[{y:1,n:'Av. George Washington'},{y:2,n:'Av. Independencia'},{y:4,n:'Av. 27 de Febrero'},{y:5.5,n:'Av. John F. Kennedy'},{y:7,n:'Av. República de Colombia'}];
+const AVES_V=[{x:4.5},{x:6},{x:7},{x:8.5},{x:12.5}];
+const BOUNDS={x0:3.2,x1:14.4,y0:0.3,y1:9};
+const seaY=x=>0.55+0.18*Math.sin(x*0.85)+0.06*Math.sin(x*2.3);
+const CATS={eco:{name:'Económico',mult:1,desc:'Sedán compacto · 4'},confort:{name:'Confort',mult:1.35,desc:'Más espacio, más reciente · 4'},xl:{name:'XL',mult:1.7,desc:'Minivan · hasta 6'}};
+const DEFAULT_F={base:90,km:30,min:6,minFare:160,comm:10};
+const VEH=[
+ {id:'v1',plate:'A 482911',model:'Toyota Corolla 2022',color:'Gris',cat:'confort',odo:61240,next:65000},
+ {id:'v2',plate:'A 517308',model:'Hyundai Accent 2021',color:'Blanco',cat:'eco',odo:88410,next:90000},
+ {id:'v3',plate:'A 503776',model:'Kia K5 2023',color:'Negro',cat:'confort',odo:31020,next:35000},
+ {id:'v4',plate:'A 466120',model:'Toyota Yaris 2020',color:'Rojo',cat:'eco',odo:104620,next:105000},
+ {id:'v5',plate:'A 529045',model:'Honda Civic 2022',color:'Azul',cat:'confort',odo:47300,next:50000},
+ {id:'v6',plate:'A 491552',model:'Hyundai Accent 2022',color:'Plata',cat:'eco',odo:72950,next:75000},
+ {id:'v7',plate:'A 538817',model:'Toyota Sienna 2021',color:'Blanco',cat:'xl',odo:56210,next:60000},
+ {id:'v8',plate:'A 474630',model:'Kia Picanto 2021',color:'Gris',cat:'eco',odo:93180,next:95000},
+ {id:'v9',plate:'A 521194',model:'Hyundai H-1 2020',color:'Blanco',cat:'xl',odo:120400,next:120000,maint:true},
+ {id:'v10',plate:'A 540372',model:'Toyota Corolla 2023',color:'Blanco',cat:'confort',odo:12800,next:15000},
+];
+const DRV=[
+ {id:'d1',name:'Yohanna Batista',vid:'v2',x:7,y:5,rating:4.93,rent:8500,paid:5000,online:true},
+ {id:'d2',name:'Ramón Peña',vid:'v1',x:8,y:3,rating:4.88,rent:9500,paid:9500,online:true},
+ {id:'d3',name:'Luis Almonte',vid:'v4',x:9.5,y:2,rating:4.71,rent:8000,paid:3000,online:true},
+ {id:'d4',name:'Rosanny Tejada',vid:'v3',x:6,y:6,rating:4.97,rent:10500,paid:10500,online:true},
+ {id:'d5',name:'Carlos Féliz',vid:'v6',x:5,y:3.5,rating:4.82,rent:8500,paid:6000,online:true},
+ {id:'d6',name:'Miguelina Rosario',vid:'v5',x:12.5,y:4,rating:4.9,rent:9500,paid:4500,online:true},
+ {id:'d7',name:'José Encarnación',vid:'v7',x:7.5,y:2,rating:4.85,rent:12000,paid:12000,online:true},
+ {id:'d8',name:'Pedro Cuevas',vid:'v8',x:4.5,y:7,rating:4.64,rent:7500,paid:0,online:false},
+];
+const CORPS=[
+ {id:'c1',name:'Constructora Caribe Norte',users:14,limit:120000,used:48250,trips:131},
+ {id:'c2',name:'Hotel Brisas del Malecón',users:6,limit:80000,used:61900,trips:174},
+ {id:'c3',name:'Clínica Bienestar Naco',users:9,limit:60000,used:18400,trips:52},
+];
+const PAX={p1:{id:'p1',name:'María Gómez',card:'4242',corp:null,home:'piantini'},p2:{id:'p2',name:'Pedro Ramírez',card:'1881',corp:'c1',home:'naco'}};
+const NAMES=['Ana Lucía Pérez','Wilson Reyes','Patricia Mejía','Francis Tavárez','Leonel Castillo','Yudelka Santos','Héctor Vargas','Carolina Ureña','Juan Carlos Polanco','Nicole Ferreras','Rafael Sánchez','Daniela Matos'];
+
+const onGrid=v=>Math.abs(v*2-Math.round(v*2))<1e-6;
+function route(a,b){
+  const pts=[{x:a.x,y:a.y}]; let c={x:a.x,y:a.y};
+  if(!onGrid(c.y)){c={x:c.x,y:Math.round(c.y*2)/2};pts.push(c);}
+  else if(!onGrid(c.x)){c={x:Math.round(c.x*2)/2,y:c.y};pts.push(c);}
+  if((c.x<RIVER)!==(b.x<RIVER)) pts.push({x:c.x,y:BRIDGE_Y},{x:b.x,y:BRIDGE_Y});
+  else pts.push({x:b.x,y:c.y});
+  pts.push({x:b.x,y:b.y});
+  const out=[pts[0]];
+  for(const p of pts){const q=out[out.length-1]; if(man(p,q)>1e-6) out.push({x:p.x,y:p.y});}
+  return out;
+}
+const plen=p=>{let s=0;for(let i=1;i<p.length;i++)s+=man(p[i-1],p[i]);return s;};
+function advance(d,dist){
+  while(dist>0&&d.path.length>1){
+    const t=d.path[1],dx=t.x-d.x,dy=t.y-d.y,L=Math.hypot(dx,dy);
+    if(L>1e-9)d.h=Math.atan2(dy,dx);
+    if(dist>=L){d.x=t.x;d.y=t.y;d.path.shift();dist-=L;}
+    else{d.x+=dx/L*dist;d.y+=dy/L*dist;dist=0;}
+    d.path[0]={x:d.x,y:d.y};
+  }
+}
+function estimate(a,b,cat){
+  const f=S.fares, km=Math.max(0.5,plen(route(a,b))), min=mins(km)+3;
+  const base=f.base, kmC=f.km*km, minC=f.min*min, sub=base+kmC+minC;
+  let fare=Math.max(sub*CATS[cat].mult, f.minFare*CATS[cat].mult);
+  fare=Math.round(fare/5)*5;
+  return {km,min,fare,base,kmC,minC,adj:fare-sub};
+}
+
+let S=null;
+const drv=id=>S.drivers.find(d=>d.id===id);
+const veh=d=>S.vehicles.find(v=>v.id===d.vid);
+const trip=id=>S.trips.find(t=>t.id===id);
+const corp=id=>S.corps.find(c=>c.id===id);
+const offerFor=d=>S.trips.find(t=>t.status==='searching'&&t.offerTo===d.id);
+
+function init(){
+  const keep=S?{role:S.role,who:S.who,ftab:S.ftab}:{role:store.get('rf-role'),who:store.get('rf-who'),ftab:'veh'};
+  S={role:null,who:null,ctrl:null,start:null,ftab:keep.ftab,fares:{...DEFAULT_F},trips:[],feed:[],alerts:[],seq:4100,drvDone:null,
+     pax:{from:'piantini',to:null,cat:'eco',pay:'card',q:'',tripId:null,rating:5,tip:0},
+     nextSynth:now()+7000,nextMine:0,modal:null,page:null,menu:false};
+  S.vehicles=VEH.map(v=>({...v,maint:!!v.maint,alerted:false}));
+  S.drivers=DRV.map(d=>({...d,path:[{x:d.x,y:d.y}],h:0,status:'idle',tripId:null,earn:0,trips:0,balance:d.rent-d.paid,atDest:false}));
+  S.corps=CORPS.map(c=>({...c}));
+  seedHistory();
+  S.vehicles.forEach(checkMaint);
+  log('Turno iniciado · 7 conductores conectados');
+  if(keep.role==='pax'&&PAX[keep.who]) login('pax',keep.who,true);
+  else if(keep.role==='drv'&&DRV.some(d=>d.id===keep.who)) login('drv',keep.who,true);
+}
+function seedHistory(){
+  const t0=now()-5*3600e3, n=26, active=S.drivers.filter(d=>d.online);
+  for(let i=0;i<n;i++){
+    const d=pick(active), v=veh(d), from=pick(PLACES), to=pick(PLACES.filter(p=>p!==from));
+    const r=Math.random(), pay=r<.45?'cash':r<.85?'card':'corp';
+    const c=pay==='corp'?pick(S.corps):null, e=estimate(from,to,v.cat);
+    const created=t0+(i/n)*(5*3600e3-15*60e3)+rand(0,4*60e3);
+    const t={id:'T'+(++S.seq),paxId:null,paxName:pick(NAMES),corp:c?c.id:null,from,to,cat:v.cat,pay,km:e.km,min:e.min,fare:e.fare,b:e,
+      comm:S.fares.comm,status:'completed',pin:'0000',created,doneAt:created+e.min*60e3,driverId:d.id,rejected:[],pickupKm:rand(.5,2),synthetic:true};
+    settle(d,t,true); S.trips.unshift(t);
+  }
+  [['p1','piantini','agora','card',26],['p1','colonial','piantini','cash',50],['p2','naco','ozama','corp',30]].forEach(([pid,a,b,pay,h],i)=>{
+    const e=estimate(P[a],P[b],'eco'),created=now()-h*3600e3,d=S.drivers[i+1];
+    S.trips.push({id:'T'+(3900+i),paxId:pid,paxName:PAX[pid].name,corp:pay==='corp'?PAX[pid].corp:null,from:P[a],to:P[b],cat:'eco',pay,km:e.km,min:e.min,fare:e.fare,b:e,comm:S.fares.comm,status:'completed',created,doneAt:created+e.min*60e3,driverId:d.id,rejected:[],rating:5,old:true});
+  });
+}
+function settle(d,t,silent){
+  const v=veh(d), share=t.fare*(1-t.comm/100), comm=t.fare*t.comm/100;
+  d.earn+=share; d.trips++;
+  if(t.pay==='cash') d.balance+=comm; else d.balance-=share;
+  if(t.corp){const c=corp(t.corp); c.used+=t.fare; c.trips++;}
+  v.odo+=t.km+(t.pickupKm||0);
+  if(!silent) checkMaint(v);
+}
+function checkMaint(v){
+  if(!v.maint&&!v.alerted&&v.odo>=v.next-500){
+    v.alerted=true;
+    addAlert('maint',`Mantenimiento próximo · ${v.plate}`,`${v.model}: ${Math.round(v.odo).toLocaleString('en-US')} km de ${v.next.toLocaleString('en-US')} km`);
+  }
+}
+function log(text){S.feed.unshift({t:now(),text});S.feed.length=Math.min(S.feed.length,60);}
+function addAlert(type,title,text){S.alerts.unshift({id:'A'+(++S.seq),type,title,text,t:now(),resolved:false});}
+
+function login(role,who,silent){
+  S.role=role; S.who=who; S.start=null; S.ctrl=role==='drv'?who:null;
+  store.set('rf-role',role); store.set('rf-who',who);
+  if(role==='pax'){S.pax.from=PAX[who].home; S.pax.pay=PAX[who].corp?'corp':'card'; S.pax.to=null; S.pax.tripId=null;}
+  if(role==='drv'){S.nextMine=now()+5000; S.drvDone=null;}
+  camReset();
+  if(!silent) toast(role==='pax'?`Hola, ${first(PAX[who].name)}`:`Bienvenido, ${first(drv(who).name)}`);
+}
+function logout(){
+  if(S.role==='pax'&&activePaxTrip()){toast('Tienes un viaje en curso');return false;}
+  if(S.role==='drv'){const d=drv(S.ctrl); if(d.status!=='idle'){toast('Termina el viaje en curso primero');return false;}}
+  S.role=null;S.who=null;S.ctrl=null;S.start=null;store.set('rf-role',null);store.set('rf-who',null);camReset();
+  return true;
+}
+
+function createTrip(o){
+  const e=estimate(o.from,o.to,o.cat);
+  const t={id:'T'+(++S.seq),paxId:o.paxId||null,paxName:o.paxName,corp:o.corp||null,from:o.from,to:o.to,cat:o.cat,pay:o.pay,
+    km:e.km,min:e.min,fare:e.fare,b:e,comm:S.fares.comm,status:'searching',pin:String(1000+Math.floor(Math.random()*9000)),
+    created:now(),rejected:[],offerTo:null,offerAt:0,driverId:null,prefer:o.prefer||null,synthetic:!!o.synthetic,paxRating:(4.6+Math.random()*0.4).toFixed(1)};
+  S.trips.unshift(t); if(S.trips.length>220)S.trips.length=220;
+  log(`Solicitud ${t.id} · ${first(t.paxName)} · ${t.from.name} → ${t.to.name} · ${CATS[t.cat].name}`);
+  return t;
+}
+function accept(d,t){
+  t.status='assigned'; t.driverId=d.id; t.offerTo=null; t.assignedAt=now();
+  d.status='toPickup'; d.tripId=t.id; d.path=route(d,t.from); t.pickupKm=plen(d.path);
+  log(`${first(d.name)} aceptó ${t.id} · recoge en ${t.from.name}`);
+}
+function startTrip(d,t){d.status='onTrip';t.status='ongoing';t.startedAt=now();d.path=route(d,t.to);log(`${t.id} en curso · ${first(d.name)} → ${t.to.name}`);}
+function completeTrip(d,t){
+  t.status='completed'; t.doneAt=now(); settle(d,t,false);
+  d.status='idle'; d.tripId=null; d.atDest=false; d.path=[{x:d.x,y:d.y}];
+  if(t.synthetic){const r=Math.random()<.8?5:4; t.rating=r; d.rating=(d.rating*200+r)/201;}
+  log(`${t.id} completado · ${money(t.fare)} · ${payShort(t)}`);
+  if(d.id===S.ctrl){S.drvDone={id:t.id,at:now()};S.nextMine=now()+rand(6000,10000);}
+}
+function cancelTrip(t,by){
+  if(t.driverId){const d=drv(t.driverId); if(d){d.status='idle';d.tripId=null;d.atDest=false;d.path=[{x:d.x,y:d.y}];}}
+  t.status='cancelled'; t.offerTo=null; log(`${t.id} cancelado por ${by}`);
+}
+const payShort=t=>t.pay==='cash'?'Efectivo':t.pay==='card'?'Tarjeta':'Corporativo';
+function payText(t){
+  if(t.pay==='cash') return `<b>Efectivo</b> · paga ${money(t.fare)} al conductor`;
+  if(t.pay==='card') return `<b>Tarjeta •••• ${PAX[t.paxId]?.card||'4242'}</b> · cobro aprobado (simulado)`;
+  return `<b>Cuenta corporativa</b> · ${esc(corp(t.corp).name)} · se factura a fin de mes`;
+}
+
+function tick(dt){
+  const T=now();
+  for(const t of S.trips){
+    if(t.status!=='searching') continue;
+    if(t.offerTo){
+      const d=drv(t.offerTo);
+      if(!d||!d.online||d.status!=='idle'){t.rejected.push(t.offerTo);t.offerTo=null;}
+      else if(d.id===S.ctrl){ if(T>t.offerAt+15000){t.rejected.push(d.id);t.offerTo=null;log(`${first(d.name)} no respondió a ${t.id}; pasa al siguiente`);} }
+      else if(T>t.offerAt+1500) accept(d,t);
+    }
+    if(t.status==='searching'&&!t.offerTo){
+      const busy=new Set(S.trips.filter(o=>o.status==='searching'&&o.offerTo).map(o=>o.offerTo));
+      const ok=d=>d&&d.online&&d.status==='idle'&&!busy.has(d.id)&&!veh(d).maint&&veh(d).cat===t.cat&&!t.rejected.includes(d.id);
+      let c=null;
+      if(t.prefer&&ok(drv(t.prefer))) c=drv(t.prefer);
+      else c=S.drivers.filter(ok).sort((a,b)=>man(a,t.from)-man(b,t.from))[0];
+      if(c){t.offerTo=c.id;t.offerAt=T;}
+      else if(T-t.created>25000){t.status='nodriver';log(`${t.id} sin conductores disponibles`);}
+    }
+  }
+  for(const d of S.drivers){
+    if(!d.online&&d.status==='idle') continue;
+    if(d.status==='idle'){
+      if(d.path.length<=1&&Math.random()<dt*0.25){
+        const side=d.x<RIVER;
+        let nx=Math.round((d.x+rand(-1.2,1.2))*2)/2, ny=Math.round((d.y+rand(-1.2,1.2))*2)/2;
+        nx=Math.min(BOUNDS.x1-.5,Math.max(BOUNDS.x0+.5,nx)); ny=Math.min(8.5,Math.max(1,ny));
+        if(side&&nx>11)nx=11; if(!side&&nx<11.5)nx=11.5;
+        d.path=route(d,{x:nx,y:ny});
+      }
+      advance(d,WANDER*dt); continue;
+    }
+    advance(d,SPEED*dt);
+    const t=trip(d.tripId); if(!t){d.status='idle';continue;}
+    if(d.status==='toPickup'&&d.path.length<=1){d.status='atPickup';t.status='arrived';t.arrivedAt=T;log(`${first(d.name)} llegó a ${t.from.name} (${t.id})`);}
+    else if(d.status==='atPickup'&&d.id!==S.ctrl&&T-t.arrivedAt>3500) startTrip(d,t);
+    else if(d.status==='onTrip'&&d.path.length<=1){ if(d.id===S.ctrl) d.atDest=true; else completeTrip(d,t); }
+  }
+  if(S.role==='drv'){
+    const d=drv(S.ctrl);
+    if(d.online&&d.status==='idle'&&!offerFor(d)&&T>S.nextMine){
+      S.nextMine=T+rand(9000,14000);
+      const near=PLACES.slice().sort((a,b)=>man(a,d)-man(b,d)).slice(0,3), from=pick(near);
+      const to=pick(PLACES.filter(p=>p!==from&&man(p,from)>1.5)), r=Math.random(), pay=r<.45?'cash':r<.85?'card':'corp';
+      createTrip({paxName:pick(NAMES),from,to,cat:veh(d).cat,pay,corp:pay==='corp'?pick(S.corps).id:null,synthetic:true,prefer:d.id});
+    }
+  }
+  if(T>S.nextSynth){
+    S.nextSynth=T+rand(9000,15000);
+    const idle=S.drivers.filter(d=>d.online&&d.status==='idle'&&!veh(d).maint&&d.id!==S.ctrl);
+    if(idle.length>=3){
+      const d0=pick(idle), from=pick(PLACES), to=pick(PLACES.filter(p=>p!==from)), r=Math.random(), pay=r<.45?'cash':r<.85?'card':'corp';
+      createTrip({paxName:pick(NAMES),from,to,cat:veh(d0).cat,pay,corp:pay==='corp'?pick(S.corps).id:null,synthetic:true,prefer:d0.id});
+    }
+  }
+}
+
+let C={};
+function readTokens(){
+  const cs=getComputedStyle(document.documentElement);
+  for(const k of ['land','street','avenue','sea','river','label','accent','signal','ok','muted','ink','surface','danger']) C[k]=cs.getPropertyValue('--'+k).trim();
+}
+function drawMap(cv,o,dt){
+  const W=cv.clientWidth,H=cv.clientHeight; if(!W||!H) return;
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  const ins=o.inset||{l:0,t:0,r:0,b:0}, AW=Math.max(60,W-ins.l-ins.r), AH=Math.max(60,H-ins.t-ins.b);
+  const CX=ins.l+AW/2, CY=ins.t+AH/2;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for(const p of o.focus){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);}
+  const pad=o.pad??0.7, bw=Math.max(x1-x0+pad*2,o.minSpan), bh=Math.max(y1-y0+pad*2,o.minSpan*0.5);
+  const ts=Math.min(AW/bw,AH/bh,140), tcx=(x0+x1)/2, tcy=(y0+y1)/2;
+  const cam=cv._cam||(cv._cam={s:ts,cx:tcx,cy:tcy});
+  const k=o.instant?1:1-Math.exp(-dt*3);
+  cam.s+=(ts-cam.s)*k; cam.cx+=(tcx-cam.cx)*k; cam.cy+=(tcy-cam.cy)*k;
+  const s=cam.s, X=x=>CX+(x-cam.cx)*s, Y=y=>CY-(y-cam.cy)*s;
+  const wx0=cam.cx-CX/s, wx1=cam.cx+(W-CX)/s, wy0=cam.cy-(H-CY)/s, wy1=cam.cy+CY/s;
+  g.fillStyle=C.land; g.fillRect(0,0,W,H);
+  g.strokeStyle=C.street; g.lineWidth=Math.max(1,s*0.05); g.beginPath();
+  for(let x=Math.floor(wx0*2)/2;x<=wx1;x+=.5){g.moveTo(X(x),0);g.lineTo(X(x),H);}
+  for(let y=Math.floor(wy0*2)/2;y<=wy1;y+=.5){g.moveTo(0,Y(y));g.lineTo(W,Y(y));}
+  g.stroke();
+  g.strokeStyle=C.avenue; g.lineWidth=Math.max(2.5,s*0.1); g.beginPath();
+  for(const a of AVES_H){g.moveTo(0,Y(a.y));g.lineTo(W,Y(a.y));}
+  for(const a of AVES_V){g.moveTo(X(a.x),0);g.lineTo(X(a.x),H);}
+  g.stroke();
+  g.fillStyle=C.sea; g.beginPath(); g.moveTo(0,H);
+  for(let px=0;px<=W+6;px+=6) g.lineTo(px,Y(seaY(wx0+px/s)));
+  g.lineTo(W,H); g.closePath(); g.fill();
+  g.strokeStyle=C.river; g.lineWidth=Math.max(5,s*0.32); g.lineCap='butt'; g.beginPath();
+  const sy=seaY(RIVER)-.2; g.moveTo(X(RIVER+0.09*Math.sin(sy*1.7)),Y(sy));
+  for(let y=sy;y<=Math.max(wy1,9.5);y+=.1) g.lineTo(X(RIVER+0.09*Math.sin(y*1.7)),Y(y));
+  g.stroke();
+  g.strokeStyle=C.avenue; g.lineWidth=Math.max(2.5,s*0.1); g.beginPath(); g.moveTo(X(RIVER-.45),Y(BRIDGE_Y)); g.lineTo(X(RIVER+.45),Y(BRIDGE_Y)); g.stroke();
+  g.textBaseline='middle';
+  if(s>34){
+    g.font='600 10px Inter, system-ui, sans-serif'; g.fillStyle=C.label; g.globalAlpha=.75;
+    for(const a of AVES_H){ if(a.y>wy0&&a.y<wy1) g.fillText(a.n,Math.max(ins.l+8,X(BOUNDS.x0+.3)),Y(a.y)-7); }
+    g.globalAlpha=1;
+  }
+  if(s>22){
+    g.font='600 11px Inter, system-ui, sans-serif';
+    for(const p of PLACES){ if(p.x<wx0-1||p.x>wx1+1||p.y<wy0-1||p.y>wy1+1) continue;
+      g.fillStyle=C.label; g.beginPath(); g.arc(X(p.x),Y(p.y),2.4,0,7); g.fill();
+      g.fillText(p.name,X(p.x)+5,Y(p.y)+9); }
+    g.font='italic 600 10.5px Inter, system-ui, sans-serif'; g.globalAlpha=.6;
+    g.fillText('Mar Caribe',X(Math.max(wx0+.3,5)),Y(seaY(5))+16); g.fillText('Río Ozama',X(RIVER)+9,Y(Math.min(wy1-.6,7.5)));
+    g.globalAlpha=1;
+  }
+  g.lineCap='round'; g.lineJoin='round';
+  for(const r of o.routes||[]){
+    if(!r.pts||r.pts.length<2) continue;
+    g.strokeStyle=r.color; g.lineWidth=r.w||4; g.setLineDash(r.dash||[]); g.globalAlpha=r.alpha??1;
+    g.beginPath(); r.pts.forEach((p,i)=>i?g.lineTo(X(p.x),Y(p.y)):g.moveTo(X(p.x),Y(p.y))); g.stroke();
+  }
+  g.setLineDash([]); g.globalAlpha=1;
+  for(const p of o.pins||[]){
+    const px=X(p.x),py=Y(p.y);
+    if(p.kind==='o'){g.fillStyle=C.surface;g.strokeStyle=C.accent;g.lineWidth=4;g.beginPath();g.arc(px,py,7,0,7);g.fill();g.stroke();}
+    else if(p.kind==='me'){g.fillStyle=C.accent;g.globalAlpha=.2;g.beginPath();g.arc(px,py,20,0,7);g.fill();g.globalAlpha=1;g.strokeStyle=C.surface;g.lineWidth=3;g.beginPath();g.arc(px,py,8,0,7);g.fill();g.stroke();}
+    else{g.fillStyle=C.ink;g.fillRect(px-7,py-7,14,14);g.fillStyle=C.surface;g.fillRect(px-2.5,py-2.5,5,5);}
+  }
+  for(const c of o.cars||[]){
+    const px=X(c.x),py=Y(c.y), L=c.hl?22:15, Wd=c.hl?11:8;
+    if(c.hl){g.fillStyle=c.color;g.globalAlpha=.18;g.beginPath();g.arc(px,py,20,0,7);g.fill();g.globalAlpha=1;}
+    g.save(); g.translate(px,py); g.rotate(-c.h);
+    g.fillStyle=c.color; g.strokeStyle=C.surface; g.lineWidth=1.8;
+    g.beginPath(); g.roundRect?g.roundRect(-L/2,-Wd/2,L,Wd,3):g.rect(-L/2,-Wd/2,L,Wd); g.fill(); g.stroke();
+    g.fillStyle=C.surface; g.globalAlpha=.8; g.fillRect(L/2-L*.32,-Wd/2+2,L*.16,Wd-4); g.globalAlpha=1;
+    g.restore();
+  }
+}
+const carColor=d=>!d.online?C.muted:d.status==='idle'?C.ok:C.signal;
+const carOf=(d,hl,color)=>({x:d.x,y:d.y,h:d.h,color:color||(hl?C.ink:carColor(d)),hl});
+function camReset(){const cv=$('#map-cv'); if(cv) cv._cam=null;}
+function mapInsets(){
+  const sh=$('#sheet').getBoundingClientRect(), W=innerWidth, H=innerHeight, top=70;
+  if(W>=900) return {l:sh.right+12,t:top,r:24,b:24};
+  return {l:16,t:top,r:16,b:Math.max(0,H-sh.top)+12};
+}
+function appMap(dt){
+  const o={minSpan:2.4,routes:[],pins:[],cars:[],inset:mapInsets()};
+  if(!S.role){
+    o.focus=[{x:5,y:1.5},{x:13,y:7}]; o.minSpan=6;
+    o.cars=S.drivers.filter(d=>d.online).map(d=>carOf(d,false,C.ink));
+  } else if(S.role==='pax'){
+    const p=S.pax, t=p.tripId&&trip(p.tripId), from=P[p.from], to=p.to&&P[p.to];
+    if(!t||['searching','nodriver','cancelled'].includes(t.status)){
+      const a=t?t.from:from, b=t?t.to:to;
+      o.focus=b?[a,b]:[a]; o.pins.push({...a,kind:b?'o':'me'});
+      if(b){o.pins.push({...b,kind:'d'});o.routes.push({pts:route(a,b),color:C.ink,w:4.5,dash:t?[2,8]:[]});}
+      o.cars=S.drivers.filter(d=>d.online&&d.status==='idle'&&man(d,a)<4).map(d=>carOf(d,false,C.ink));
+      if(!b) o.minSpan=3;
+    } else {
+      const d=drv(t.driverId);
+      if(t.status==='completed'){o.focus=[t.to];o.pins.push({...t.to,kind:'d'});o.minSpan=2.4;}
+      else if(t.status==='ongoing'){o.focus=[d,t.to];o.routes.push({pts:d.path,color:C.ink,w:5});o.pins.push({...t.to,kind:'d'});o.cars=[carOf(d,true)];}
+      else{o.focus=[d,t.from];o.routes.push({pts:d.path,color:C.ink,w:4,dash:[1,8]});o.pins.push({...t.from,kind:'o'});o.cars=[carOf(d,true)];}
+    }
+  } else {
+    const d=drv(S.ctrl), offer=offerFor(d), t=d.tripId&&trip(d.tripId);
+    o.cars=S.drivers.filter(x=>x!==d&&x.online&&man(x,d)<4).map(x=>carOf(x,false,C.muted));
+    if(offer){o.focus=[d,offer.from,offer.to];o.routes.push({pts:route(d,offer.from),color:C.muted,w:3,dash:[1,7]},{pts:route(offer.from,offer.to),color:C.ink,w:4.5});o.pins.push({...offer.from,kind:'o'},{...offer.to,kind:'d'});}
+    else if(t&&(t.status==='assigned'||t.status==='arrived')){o.focus=[d,t.from];o.routes.push({pts:d.path,color:C.accent,w:6});o.pins.push({...t.from,kind:'o'});}
+    else if(t&&t.status==='ongoing'){o.focus=[d,t.to];o.routes.push({pts:d.path,color:C.accent,w:6});o.pins.push({...t.to,kind:'d'});}
+    else {o.focus=[d];o.minSpan=3.2;}
+    o.cars.push(carOf(d,true,d.online?C.accent:C.muted));
+  }
+  drawMap($('#map-cv'),o,dt);
+}
+function fleetMap(){
+  const o={focus:[{x:BOUNDS.x0,y:BOUNDS.y0},{x:BOUNDS.x1,y:BOUNDS.y1}],pad:0,minSpan:1,instant:true,routes:[],pins:[],cars:[]};
+  for(const t of S.trips){
+    if(t.status==='assigned'||t.status==='arrived'||t.status==='ongoing'){
+      const d=drv(t.driverId); o.routes.push({pts:d.path,color:C.signal,w:2.5,alpha:.7});
+      o.pins.push({...(t.status==='ongoing'?t.to:t.from),kind:t.status==='ongoing'?'d':'o'});
+    } else if(t.status==='searching') o.pins.push({...t.from,kind:'o'});
+  }
+  o.cars=S.drivers.map(d=>carOf(d,false,carColor(d)));
+  drawMap($('#fleet-map'),o,0);
+}
+
+function startHTML(){
+  if(S.start==='pax') return `<button class="back" data-act="start" data-arg="">${I.back} Atrás</button>
+    <div><span class="eyebrow">Pasajero</span><h3 class="sh-title">Elige tu cuenta</h3><p class="fine">En la versión real entras con tu número de teléfono y un código por SMS.</p></div>
+    <div>${Object.values(PAX).map(p=>`<button class="acct" data-act="login" data-arg="pax:${p.id}"><span class="av p">${initials(p.name)}</span><span><b>${esc(p.name)}</b><small>${p.corp?'Cuenta corporativa · '+esc(corp(p.corp).name):'Cuenta personal · tarjeta •••• '+p.card}</small></span><span class="chev">›</span></button>`).join('')}</div>`;
+  if(S.start==='drv') return `<button class="back" data-act="start" data-arg="">${I.back} Atrás</button>
+    <div><span class="eyebrow">Conductor</span><h3 class="sh-title">Elige tu perfil de conductor</h3><p class="fine">Solo conductores registrados por la flota, cada uno con su vehículo asignado.</p></div>
+    <div>${S.drivers.map(d=>{const v=veh(d);return `<button class="acct" data-act="login" data-arg="drv:${d.id}"><span class="av">${initials(d.name)}</span><span><b>${esc(d.name)}</b><small>${esc(v.model)} · ${CATS[v.cat].name}</small></span><span class="plate">${esc(v.plate)}</span></button>`;}).join('')}</div>`;
+  return `<div class="welcome">${logo(44)}<h3 class="sh-title" style="font-size:28px">Muévete por Santo Domingo con RutaFlota</h3><p class="muted">Viajes con los vehículos y conductores de la flota.</p></div>
+    <button class="role" data-act="start" data-arg="pax"><span class="role-ic p">${I.person}</span><span><b>Pedir un viaje</b><small>Soy pasajero</small></span><span class="chev">›</span></button>
+    <button class="role" data-act="start" data-arg="drv"><span class="role-ic d">${I.wheel}</span><span><b>Conducir</b><small>Soy conductor de la flota</small></span><span class="chev">›</span></button>
+    <p class="fine">Prototipo con datos de ejemplo y pagos simulados. ¿Trabajas en la oficina? <button class="link" data-act="go-fleet">Abrir panel de la flota</button></p>`;
+}
+
+const paxTrip=()=>S.pax.tripId&&trip(S.pax.tripId);
+const activePaxTrip=()=>{const t=paxTrip();return t&&['searching','assigned','arrived','ongoing'].includes(t.status);};
+let etaCache={k:'',t:0,v:null};
+function catEtas(from){
+  if(etaCache.k===from.id&&now()-etaCache.t<5000) return etaCache.v;
+  const r={};
+  for(const k in CATS){
+    const c=S.drivers.filter(d=>d.online&&d.status==='idle'&&veh(d).cat===k&&!veh(d).maint);
+    r[k]=c.length?mins(Math.min(...c.map(d=>man(d,from)))):null;
+  }
+  etaCache={k:from.id,t:now(),v:r}; return r;
+}
+function payOpts(){
+  const prof=PAX[S.who], o=[{k:'card',l:'Tarjeta •••• '+prof.card},{k:'cash',l:'Efectivo'}];
+  if(prof.corp) o.unshift({k:'corp',l:'Corporativa · '+corp(prof.corp).name});
+  return o;
+}
+function suggHTML(){
+  const p=S.pax,q=norm(p.q.trim()), from=P[p.from];
+  const rec=new Set(S.trips.filter(t=>t.paxId===S.who&&t.status==='completed').map(t=>t.to.id));
+  let list=PLACES.filter(pl=>pl.id!==p.from&&(!q||norm(pl.name+' '+pl.sub).includes(q)));
+  if(!q) list.sort((a,b)=>(rec.has(b.id)?1:0)-(rec.has(a.id)?1:0));
+  list=list.slice(0,q?6:5);
+  if(!list.length) return `<p class="empty">No encontramos “${esc(p.q)}”. Prueba con un sector o una avenida.</p>`;
+  return list.map(pl=>`<button class="sugg-item" data-act="pax-dest" data-arg="${pl.id}"><span class="s-ic">${rec.has(pl.id)&&!q?I.clock:I.pin}</span><span><b>${esc(pl.name)}</b><small>${esc(pl.sub)} · ${plen(route(from,pl)).toFixed(1)} km</small></span></button>`).join('');
+}
+function routeBox(a,b,extra){
+  return `<div class="trip-route"><div class="rt-rows">
+    <div class="rt-row"><span class="dot o"></span><div style="min-width:0"><small>Recogida</small><b>${esc(a.name)}</b></div></div>
+    <div class="rt-row"><span class="dot d"></span><div style="min-width:0"><small>Destino</small><b>${esc(b.name)}</b></div></div>
+  </div>${extra||''}</div>`;
+}
+const carSvg=k=>{const w=k==='xl'?42:k==='confort'?38:34;return `<svg width="${w}" height="22" viewBox="0 0 ${w} 22" aria-hidden="true"><path d="M3 15v-3l4-5.5h${w-16}l5 5.5h1a2 2 0 0 1 2 2v1z" fill="currentColor"/><circle cx="9.5" cy="16" r="3.2" fill="var(--surface)" stroke="currentColor" stroke-width="2"/><circle cx="${w-9.5}" cy="16" r="3.2" fill="var(--surface)" stroke="currentColor" stroke-width="2"/></svg>`;};
+function driverCard(d){
+  const v=veh(d);
+  return `<div class="drv-card"><div class="av">${initials(d.name)}</div><div class="dc-tx"><b>${esc(d.name)} · ★ ${d.rating.toFixed(2)}</b><small>${esc(v.model)} · ${esc(v.color)}</small></div><span class="plate">${esc(v.plate)}</span></div>`;
+}
+function paxHTML(){
+  const p=S.pax, from=P[p.from], t=paxTrip();
+  if(!t){
+    if(!p.to) return `<div class="search-pill">${I.search}<input id="pax-q" type="search" placeholder="¿A dónde vas?" autocomplete="off" value="${esc(p.q)}" aria-label="Destino"></div>
+      <div class="pickup"><span class="lbl">Recoger en</span><select id="pax-from" aria-label="Lugar de recogida">${PLACES.map(pl=>`<option value="${pl.id}"${pl.id===p.from?' selected':''}>${esc(pl.name)}</option>`).join('')}</select></div>
+      <div class="sugg" id="pax-sugg">${suggHTML()}</div>`;
+    const to=P[p.to], etas=catEtas(from), e=estimate(from,to,p.cat);
+    return `${routeBox(from,to,`<button class="link" data-act="pax-change">Cambiar</button>`)}
+      <div class="rt-meta">${e.km.toFixed(1)} km · unos ${e.min} min · precio fijo</div>
+      <div class="cats" role="radiogroup" aria-label="Categoría">${Object.entries(CATS).map(([k,c])=>`<button class="cat${k===p.cat?' on':''}" role="radio" aria-checked="${k===p.cat}" data-act="pax-cat" data-arg="${k}"><span class="cat-ic">${carSvg(k)}</span><span><b>${c.name}</b><small>${etas[k]==null?'Sin conductores cerca':'A '+etas[k]+' min'} · ${c.desc}</small></span><span class="cat-px">${money(estimate(from,to,k).fare)}</span></button>`).join('')}</div>
+      <div class="chips">${payOpts().map(o=>`<button class="chip${o.k===p.pay?' on':''}" data-act="pax-pay" data-arg="${o.k}">${esc(o.l)}</button>`).join('')}</div>
+      <button class="btn primary block" data-act="pax-request">Confirmar ${CATS[p.cat].name} · ${money(e.fare)}</button>`;
+  }
+  const d=t.driverId&&drv(t.driverId);
+  switch(t.status){
+    case 'searching': return `<div><span class="eyebrow">${CATS[t.cat].name} · ${money(t.fare)}</span><h3 class="sh-title">Buscando un conductor cerca de ti</h3></div><div class="scanbar"></div>${routeBox(t.from,t.to)}<button class="btn ghost block" data-act="pax-cancel">Cancelar solicitud</button>`;
+    case 'nodriver': return `<div><span class="eyebrow">Sin respuesta</span><h3 class="sh-title">No hay conductores ${CATS[t.cat].name} disponibles</h3></div><p class="muted">Prueba de nuevo en un momento o elige otra categoría.</p><div class="row-actions"><button class="btn ghost" data-act="pax-done">Cambiar categoría</button><button class="btn primary" data-act="pax-retry">Intentar de nuevo</button></div>`;
+    case 'cancelled': return `<div><span class="eyebrow">Viaje cancelado</span><h3 class="sh-title">Cancelaste tu viaje</h3></div><p class="muted">No se hizo ningún cargo.</p><button class="btn primary block" data-act="pax-done">Listo</button>`;
+    case 'assigned': case 'arrived': case 'ongoing': {
+      const head=t.status==='assigned'?`<h3 class="sh-title">Tu conductor llega en <span data-live="pax-eta">–</span></h3>`
+        :t.status==='arrived'?`<h3 class="sh-title">Tu conductor llegó</h3><p class="muted">Te espera en ${esc(t.from.name)}. Dale tu PIN al subir.</p>`
+        :`<h3 class="sh-title">Llegas a ${esc(t.to.name)} en <span data-live="pax-eta">–</span></h3>`;
+      return `<div>${head}</div>
+        ${t.status==='ongoing'?'<div class="prog"><i data-live="pax-prog"></i></div>':''}
+        ${driverCard(d)}
+        ${t.status!=='ongoing'?`<div class="pin-box"><span>PIN de seguridad</span><b class="pin">${t.pin}</b><small>Sin este PIN el conductor no puede iniciar el viaje.</small></div>`:''}
+        <div class="pay-line">${payText(t)} · ${money(t.fare)}</div>
+        <div class="row-actions"><button class="btn ghost" data-act="pax-share">Compartir viaje</button><button class="btn danger" data-act="pax-sos">SOS</button></div>
+        ${t.status!=='ongoing'?'<button class="link" data-act="pax-cancel">Cancelar viaje</button>':''}`;
+    }
+    case 'completed': {
+      const b=t.b, tips=[0,50,100,200];
+      return `<div><span class="eyebrow">Llegaste · ${clock(t.doneAt)}</span><h3 class="sh-title">¿Cómo estuvo tu viaje con ${esc(first(d.name))}?</h3></div>
+        <div class="stars">${[1,2,3,4,5].map(i=>`<button data-act="pax-star" data-arg="${i}" aria-label="${i} estrellas" class="${i<=S.pax.rating?'on':''}">★</button>`).join('')}</div>
+        ${t.pay!=='cash'?`<div class="lbl">Agregar propina</div><div class="chips">${tips.map(v=>`<button class="chip${v===S.pax.tip?' on':''}" data-act="pax-tip" data-arg="${v}">${v?money(v):'Sin propina'}</button>`).join('')}</div>`:'<p class="fine">En pagos en efectivo, la propina se entrega directamente al conductor.</p>'}
+        <div class="big-fare">${money(t.fare+(t.pay!=='cash'?S.pax.tip:0))}</div>
+        <dl class="lines">
+          <div><dt>Tarifa base</dt><dd>${money(b.base)}</dd></div>
+          <div><dt>Distancia · ${t.km.toFixed(1)} km</dt><dd>${money(b.kmC)}</dd></div>
+          <div><dt>Tiempo estimado · ${t.min} min</dt><dd>${money(b.minC)}</dd></div>
+          ${Math.abs(b.adj)>=1?`<div><dt>Ajuste ${CATS[t.cat].name}</dt><dd>${b.adj>0?'+':'−'}${money(Math.abs(b.adj))}</dd></div>`:''}
+          ${t.pay!=='cash'&&S.pax.tip?`<div><dt>Propina</dt><dd>${money(S.pax.tip)}</dd></div>`:''}
+        </dl>
+        <div class="pay-line">${payText(t)}</div>
+        <button class="btn primary block" data-act="pax-finish">Enviar</button>`;
+    }
+  }
+  return '';
+}
+
+function drvHTML(){
+  const d=drv(S.ctrl), v=veh(d), offer=offerFor(d), t=d.tripId&&trip(d.tripId);
+  if(offer){
+    const pk=plen(route(d,offer.from));
+    return `<div class="offer-top"><span class="eyebrow">Nueva solicitud · ${CATS[offer.cat].name}</span><span class="offer-sec" data-live="offer-sec">15 s</span></div>
+      <div class="offer-bar"><i data-live="offer-bar"></i></div>
+      <div><div class="big-fare">${money(offer.fare)}</div><p class="muted">Ganas ${money(offer.fare*(1-offer.comm/100))} · ${payShort(offer)}${offer.corp?' · '+esc(corp(offer.corp).name):''} · pasajero ★ ${offer.paxRating}</p></div>
+      ${routeBox(offer.from,offer.to)}
+      <div class="rt-meta">Recogida a ${mins(pk)} min (${pk.toFixed(1)} km) · viaje de ${offer.km.toFixed(1)} km</div>
+      <div class="row-actions"><button class="btn ghost" data-act="drv-reject" data-arg="${offer.id}">Rechazar</button><button class="btn go" data-act="drv-accept" data-arg="${offer.id}">Aceptar</button></div>`;
+  }
+  if(t){
+    const paxCard=`<div class="drv-card"><div class="av p">${initials(t.paxName)}</div><div class="dc-tx"><b>${esc(t.paxName)}</b><small>${t.corp?'Corporativo · '+esc(corp(t.corp).name):'Pasajero'} · ${payShort(t)}</small></div><button class="btn ghost sm" data-act="drv-call">Llamar</button></div>`;
+    if(d.status==='toPickup') return `<div><span class="eyebrow">Recogida</span><h3 class="sh-title">Recoge a ${esc(first(t.paxName))} en ${esc(t.from.name)}</h3><p class="muted"><b data-live="drv-eta">–</b> · <span data-live="drv-km"></span> · ${esc(t.from.sub)}</p></div>${paxCard}`;
+    if(d.status==='atPickup') return `<div><span class="eyebrow">Llegaste a ${esc(t.from.name)}</span><h3 class="sh-title">Pide el PIN a ${esc(first(t.paxName))}</h3></div>${paxCard}
+      <div class="pin-entry"><input id="drv-pin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" aria-label="PIN del pasajero"><button class="btn primary" data-act="drv-start">Iniciar</button></div>
+      <p class="err" id="drv-pin-msg" role="alert"></p>
+      <p class="hint">Demo: el PIN de este pasajero es <b>${t.pin}</b>.</p>`;
+    if(d.status==='onTrip') return `<div><span class="eyebrow">En viaje</span><h3 class="sh-title">Rumbo a ${esc(t.to.name)}</h3><p class="muted">${d.atDest?'Llegaste al destino':'<b data-live="drv-eta">–</b> · <span data-live="drv-km"></span>'}</p></div>
+      <div class="prog"><i data-live="drv-prog"></i></div>${paxCard}
+      <div class="pay-line">${t.pay==='cash'?`<b>Cobra ${money(t.fare)} en efectivo</b> al finalizar`:`${payShort(t)} · ${money(t.fare)} · se abona a tu saldo`}</div>
+      <button class="btn ${d.atDest?'go':'primary'} block" data-act="drv-finish"${d.atDest?'':' disabled'}>${d.atDest?'Finalizar viaje':'Finalizar al llegar'}</button>`;
+  }
+  const done=S.drvDone&&now()-S.drvDone.at<15000&&trip(S.drvDone.id);
+  const head=!d.online
+    ?`<div class="status-row"><span class="off-dot"></span><div><b>Estás desconectado</b><small>${v.maint?'Tu vehículo está en el taller.':'Conéctate para recibir solicitudes.'}</small></div></div>
+      <button class="btn go block" data-act="drv-online"${v.maint?' disabled':''}>Conectarme</button>`
+    :`<div class="status-row"><span class="pulse"></span><div><b>Buscando viajes</b><small>${CATS[v.cat].name} · ${esc(v.plate)}</small></div><button class="btn ghost sm" data-act="drv-offline">Desconectarme</button></div><div class="scanbar"></div>`;
+  return `${head}
+    ${done?`<div class="done-banner">Viaje completado · <b>+${money(done.fare*(1-done.comm/100))}</b>${done.pay==='cash'?' · cobraste '+money(done.fare)+' en efectivo':''}</div>`:''}
+    <div class="stats"><div class="stat"><small>Ganado hoy</small><b>${money(d.earn)}</b></div><div class="stat"><small>Viajes</small><b>${d.trips}</b></div><div class="stat"><small>Calificación</small><b>★ ${d.rating.toFixed(2)}</b></div></div>
+    <div class="bal ${d.balance>0?'owe':'credit'}"><span class="lbl">Saldo con la flota esta semana</span><b>${d.balance>0?'Debes ':'A tu favor '}${money(Math.abs(d.balance))}</b><small>Alquiler ${money(d.rent)} + ${S.fares.comm}% de los viajes en efectivo, menos lo cobrado con tarjeta.</small></div>`;
+}
+
+function drawerHTML(){
+  const pax=S.role==='pax', name=pax?PAX[S.who].name:drv(S.ctrl).name;
+  const sub=pax?(PAX[S.who].corp?esc(corp(PAX[S.who].corp).name):'Cuenta personal'):`★ ${drv(S.ctrl).rating.toFixed(2)} · ${esc(veh(drv(S.ctrl)).plate)}`;
+  const it=(ic,label,act,arg)=>`<button class="dr-item" data-act="${act}"${arg?` data-arg="${arg}"`:''}>${ic}<span>${label}</span></button>`;
+  return `<div class="dr-head"><span class="av${pax?' p':''}">${initials(name)}</span><div><b>${esc(name)}</b><small>${sub}</small></div></div>
+    ${pax?it(I.clock,'Tus viajes','page','trips')+it(I.wallet,'Billetera','page','wallet'):it(I.chart,'Ganancias','page','earn')+it(I.car,'Mi vehículo','page','veh')}
+    ${it(I.swap,pax?'Conducir con RutaFlota':'Pedir un viaje','switch')}
+    ${it(I.office,'Panel de la flota','go-fleet')}
+    ${it(I.reload,'Reiniciar demo','reset')}
+    ${it(I.out,'Cerrar sesión','logout')}
+    <div class="dr-foot">RutaFlota · prototipo. Datos de ejemplo, mapa esquemático y pagos simulados.</div>`;
+}
+function pageHTML(k){
+  const head=t=>`<div class="page-h"><button class="icon-btn" data-act="page-close" aria-label="Volver">${I.back}</button><h2>${t}</h2></div>`;
+  if(k==='trips'){
+    const list=S.trips.filter(t=>t.paxId===S.who&&['completed','cancelled'].includes(t.status)).sort((a,b)=>b.created-a.created);
+    return head('Tus viajes')+`<div class="page-b"><div class="panel">${list.length?list.map(t=>{const d=t.driverId&&drv(t.driverId);return `<div class="list-row"><span class="s-ic">${I.car}</span><div><b>${esc(t.to.name)}</b><small>${new Date(t.created).toLocaleDateString('es-DO',{day:'numeric',month:'short'})}, ${clock(t.created)} · desde ${esc(t.from.name)}${d?' · '+esc(first(d.name)):''}</small></div><span class="amt">${t.status==='cancelled'?'<small>Cancelado</small>':money(t.fare)}<small>${payShort(t)}</small></span></div>`;}).join(''):'<p class="muted">Aún no tienes viajes. Tus viajes completados aparecerán aquí.</p>'}</div></div>`;
+  }
+  if(k==='wallet'){
+    const prof=PAX[S.who], c=prof.corp&&corp(prof.corp);
+    return head('Billetera')+`<div class="page-b"><div class="panel"><span class="lbl">Forma de pago predeterminada</span>${payOpts().map(o=>`<button class="acct" data-act="pax-pay" data-arg="${o.k}"><span class="s-ic">${I.wallet}</span><span><b>${esc(o.l)}</b><small>${o.k==='card'?'Visa · cobro al finalizar':o.k==='cash'?'Pagas al conductor':'Se factura a la empresa a fin de mes'}</small></span>${S.pax.pay===o.k?'<span class="pill p-acc">Predeterminada</span>':''}</button>`).join('')}</div>
+      ${c?`<div class="panel"><span class="lbl">Cuenta corporativa</span><b>${esc(c.name)}</b><div class="meter"><i class="${c.used/c.limit>.75?'hot':''}" style="width:${Math.min(100,c.used/c.limit*100).toFixed(1)}%"></i></div><div class="kv"><span>Consumo del mes</span><b>${money(c.used)} de ${money(c.limit)}</b></div></div>`:''}
+      <p class="fine">Prototipo: no se guardan ni se cobran tarjetas reales.</p></div>`;
+  }
+  if(k==='earn'){
+    const d=drv(S.ctrl), list=S.trips.filter(t=>t.driverId===d.id&&t.status==='completed'&&!t.old).sort((a,b)=>b.doneAt-a.doneAt);
+    const cash=list.filter(t=>t.pay==='cash').reduce((s,t)=>s+t.fare,0);
+    return head('Ganancias')+`<div class="page-b"><div class="panel"><span class="lbl">Hoy</span><div class="big-fare">${money(d.earn)}</div><div class="kv"><span>Viajes completados</span><b>${d.trips}</b></div><div class="kv"><span>Cobrado en efectivo</span><b>${money(cash)}</b></div><div class="kv"><span>Comisión de la flota</span><b>${S.fares.comm}%</b></div></div>
+      <div class="bal ${d.balance>0?'owe':'credit'}"><span class="lbl">Saldo con la flota esta semana</span><b>${d.balance>0?'Debes ':'A tu favor '}${money(Math.abs(d.balance))}</b><small>Alquiler semanal ${money(d.rent)}. Paga en la oficina o por transferencia; la flota lo registra en su panel.</small></div>
+      <div class="panel"><span class="lbl">Viajes de hoy</span>${list.length?list.map(t=>`<div class="list-row"><div><b>${esc(t.from.name)} → ${esc(t.to.name)}</b><small>${clock(t.doneAt)} · ${payShort(t)} · ${t.km.toFixed(1)} km</small></div><span class="amt">+${money(t.fare*(1-t.comm/100))}<small>de ${money(t.fare)}</small></span></div>`).join(''):'<p class="muted">Todavía no has completado viajes hoy.</p>'}</div></div>`;
+  }
+  if(k==='veh'){
+    const d=drv(S.ctrl), v=veh(d), pct=Math.min(100,Math.max(0,100-(v.next-v.odo)/5000*100));
+    return head('Mi vehículo')+`<div class="page-b"><div class="panel" style="align-items:flex-start"><span class="plate" style="font-size:18px">${esc(v.plate)}</span><b style="font-size:18px">${esc(v.model)}</b><span class="muted">${esc(v.color)} · ${CATS[v.cat].name} · asignado por la flota</span></div>
+      <div class="panel"><span class="lbl">Mantenimiento</span><div class="kv"><span>Odómetro</span><b>${Math.round(v.odo).toLocaleString('en-US')} km</b></div><div class="kv"><span>Próximo servicio</span><b>${v.next.toLocaleString('en-US')} km</b></div><div class="meter"><i class="${pct>90?'hot':''}" style="width:${pct.toFixed(1)}%"></i></div><p class="fine">${v.maint?'En el taller. La flota te avisará cuando esté listo.':v.next-v.odo<=500?'Servicio próximo: coordina con la oficina de la flota.':'Al día.'}</p></div></div>`;
+  }
+  return '';
+}
+
+function setLive(k,v,prop){document.querySelectorAll(`[data-live="${k}"]`).forEach(el=>{if(prop==='w')el.style.width=v;else if(el.textContent!==v)el.textContent=v;});}
+function live(){
+  if(S.role==='pax'){
+    const t=paxTrip();
+    if(t&&t.driverId){const d=drv(t.driverId),rem=plen(d.path);setLive('pax-eta',mins(rem)+' min');
+      if(t.status==='ongoing')setLive('pax-prog',Math.min(100,Math.max(0,(1-rem/t.km)*100)).toFixed(1)+'%','w');}
+  }
+  if(S.role==='drv'){
+    const d=drv(S.ctrl), offer=offerFor(d);
+    if(offer){const left=Math.max(0,15000-(now()-offer.offerAt));setLive('offer-sec',Math.ceil(left/1000)+' s');setLive('offer-bar',(left/150).toFixed(1)+'%','w');}
+    const t=d.tripId&&trip(d.tripId);
+    if(t){const rem=plen(d.path);setLive('drv-eta',mins(rem)+' min');setLive('drv-km',rem.toFixed(1)+' km');
+      if(d.status==='onTrip')setLive('drv-prog',Math.min(100,(1-rem/t.km)*100).toFixed(1)+'%','w');}
+  }
+}
+
+let sk='';
+function sheetKey(){
+  if(!S.role) return 's|'+S.start;
+  if(S.role==='pax'){
+    const p=S.pax,t=paxTrip();
+    if(!t) return ['f',S.who,p.from,p.to,p.cat,p.pay,p.to?JSON.stringify(catEtas(P[p.from])):''].join('|');
+    return ['t',t.id,t.status,t.driverId,p.rating,p.tip].join('|');
+  }
+  const d=drv(S.ctrl),v=veh(d),offer=offerFor(d),t=d.tripId&&trip(d.tripId);
+  const done=S.drvDone&&now()-S.drvDone.at<15000?S.drvDone.id:'';
+  return ['d',d.id,d.online,d.status,offer?offer.id:'',t?t.id+t.status:'',d.atDest,done,Math.round(d.earn),d.trips,Math.round(d.balance),v.maint].join('|');
+}
+function renderApp(force){
+  const k=sheetKey();
+  if(force||k!==sk){
+    const sh=$('#sheet');
+    sh.innerHTML=!S.role?startHTML():S.role==='pax'?paxHTML():drvHTML();
+    sh.classList.toggle('fit',!S.role||S.role==='drv'||!!paxTrip()||!!S.pax.to);
+    sk=k;
+  }
+  $('#menu-btn').hidden=!S.role;
+  const e=$('#earn');
+  if(S.role==='drv'){const d=drv(S.ctrl);e.hidden=false;const txt=money(d.earn);if(e.dataset.v!==txt){e.innerHTML=`${txt}<small>hoy</small>`;e.dataset.v=txt;}}
+  else e.hidden=true;
+  live();
+}
+function openMenu(){S.menu=true;$('#drawer').innerHTML=drawerHTML();$('#drawer').hidden=false;$('#scrim').hidden=false;}
+function closeMenu(){S.menu=false;$('#drawer').hidden=true;$('#scrim').hidden=true;}
+function openPage(k){closeMenu();S.page=k;$('#page').innerHTML=pageHTML(k);$('#page').hidden=false;}
+function closePage(){S.page=null;$('#page').hidden=true;}
+
+function kpis(){
+  const done=S.trips.filter(t=>t.status==='completed'&&!t.old), gross=done.reduce((s,t)=>s+t.fare,0), comm=done.reduce((s,t)=>s+t.fare*t.comm/100,0);
+  const on=S.drivers.filter(d=>d.online).length, busy=S.drivers.filter(d=>d.online&&d.status!=='idle').length;
+  const owed=S.drivers.reduce((s,d)=>s+Math.max(0,d.balance),0), search=S.trips.filter(t=>t.status==='searching').length;
+  return [['Conductores conectados',`${on}<em> / ${S.drivers.length}</em>`],['En servicio ahora',`${busy}<em>${search?' · '+search+' buscando':''}</em>`],['Viajes completados hoy',done.length],['Facturación hoy',money(gross)],['Comisión de plataforma',money(comm)],['Saldo por cobrar',money(owed)]]
+    .map(([l,v])=>`<div class="kpi"><small>${l}</small><b>${v}</b></div>`).join('');
+}
+function drvState(d){
+  if(veh(d).maint&&!d.online) return ['Vehículo en taller','p-bad'];
+  if(!d.online) return ['Desconectado','p-off'];
+  if(offerFor(d)) return ['Recibiendo oferta','p-acc'];
+  return {idle:['Disponible','p-ok'],toPickup:['Va a recoger','p-busy'],atPickup:['Esperando pasajero','p-busy'],onTrip:['En viaje','p-busy']}[d.status];
+}
+function vehRows(){
+  return `<div class="tbl-wrap"><table><thead><tr><th>Placa</th><th>Vehículo</th><th>Categoría</th><th>Conductor</th><th>Estado</th><th class="r">Odómetro</th><th class="r">Próx. servicio</th><th></th></tr></thead><tbody>${
+    S.vehicles.map(v=>{const d=S.drivers.find(x=>x.vid===v.id); let st;
+      if(v.maint) st=['En taller','p-bad']; else if(!d) st=['Sin conductor','p-off']; else if(!d.online) st=['Estacionado','p-off']; else if(d.status==='idle') st=['Disponible','p-ok']; else st=['En servicio','p-busy'];
+      const near=!v.maint&&v.odo>=v.next-500;
+      const act=v.maint?`<button class="btn ghost sm" data-act="veh-return" data-arg="${v.id}">Volver a servicio</button>`:d?`<button class="btn ghost sm" data-act="veh-maint" data-arg="${v.id}">Enviar a taller</button>`:'<span class="muted">Disponible para alquiler</span>';
+      return `<tr><td><span class="plate">${esc(v.plate)}</span></td><td>${esc(v.model)} · ${esc(v.color)}</td><td>${CATS[v.cat].name}</td><td>${d?esc(d.name):'—'}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td class="r">${Math.round(v.odo).toLocaleString('en-US')} km</td><td class="r">${v.next.toLocaleString('en-US')} km ${near?'<span class="pill p-busy">Pronto</span>':''}</td><td class="r">${act}</td></tr>`;}).join('')
+  }</tbody></table></div>`;
+}
+function drvRows(){
+  return `<div class="tbl-wrap"><table><thead><tr><th>Conductor</th><th>Vehículo</th><th>Estado</th><th class="r">Viajes hoy</th><th class="r">Ganado hoy</th><th class="r">Calificación</th><th class="r">Alquiler semanal</th><th class="r">Saldo</th><th></th></tr></thead><tbody>${
+    S.drivers.map(d=>{const v=veh(d),st=drvState(d);
+      return `<tr><td><b>${esc(d.name)}</b></td><td><span class="plate">${esc(v.plate)}</span></td><td><span class="pill ${st[1]}">${st[0]}</span></td><td class="r">${d.trips}</td><td class="r">${money(d.earn)}</td><td class="r">★ ${d.rating.toFixed(2)}</td><td class="r">${money(d.rent)}</td><td class="r ${d.balance>0?'owe':'cred'}">${d.balance>0?'Debe ':'A favor '}${money(Math.abs(d.balance))}</td><td class="r"><button class="btn ghost sm" data-act="pay-open" data-arg="${d.id}">Registrar pago</button></td></tr>`;}).join('')
+  }</tbody></table></div>`;
+}
+const tripSt={searching:['Buscando','p-acc'],assigned:['Asignado','p-busy'],arrived:['En recogida','p-busy'],ongoing:['En curso','p-busy'],completed:['Completado','p-ok'],cancelled:['Cancelado','p-off'],nodriver:['Sin conductor','p-bad']};
+function tripRows(){
+  return `<div class="tbl-wrap"><table><thead><tr><th>Viaje</th><th>Hora</th><th>Pasajero</th><th>Ruta</th><th>Conductor</th><th>Categoría</th><th>Pago</th><th class="r">Monto</th><th>Estado</th></tr></thead><tbody>${
+    S.trips.filter(t=>!t.old).slice(0,40).map(t=>{const d=t.driverId&&drv(t.driverId),st=tripSt[t.status];
+      return `<tr><td>${t.id}</td><td>${clock(t.created)}</td><td>${esc(t.paxName)}${t.corp?' <span class="pill p-acc">Corp.</span>':''}</td><td>${esc(t.from.name)} → ${esc(t.to.name)}</td><td>${d?esc(d.name):'—'}</td><td>${CATS[t.cat].name}</td><td>${payShort(t)}</td><td class="r">${money(t.fare)}</td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join('')
+  }</tbody></table></div>`;
+}
+function corpRows(){
+  return `<div class="tbl-wrap"><table><thead><tr><th>Empresa</th><th class="r">Usuarios</th><th class="r">Viajes del mes</th><th class="r">Consumo</th><th class="r">Límite mensual</th><th>Uso</th></tr></thead><tbody>${
+    S.corps.map(c=>{const pct=Math.min(100,c.used/c.limit*100);
+      return `<tr><td><b>${esc(c.name)}</b></td><td class="r">${c.users}</td><td class="r">${c.trips}</td><td class="r">${money(c.used)}</td><td class="r">${money(c.limit)}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar"><i class="${pct>75?'hot':''}" style="width:${pct.toFixed(1)}%"></i></div><span>${pct.toFixed(0)}%</span></div></td></tr>`;}).join('')
+  }</tbody></table></div><p class="fine" style="padding:10px 16px 14px">Los viajes corporativos se facturan a la empresa a fin de mes. En la app, la cuenta de Pedro Ramírez pertenece a Constructora Caribe Norte.</p>`;
+}
+function faresHTML(){
+  const f=S.fares, fld=(id,l,v)=>`<label class="field"><span class="lbl">${l}</span><input id="tf-${id}" type="number" min="0" step="1" value="${v}"></label>`;
+  return `<div class="tarifas"><div style="display:flex;flex-direction:column;gap:14px">
+    <div class="tf-grid">${fld('base','Tarifa base (RD$)',f.base)}${fld('km','Por kilómetro (RD$)',f.km)}${fld('min','Por minuto (RD$)',f.min)}${fld('minFare','Tarifa mínima (RD$)',f.minFare)}${fld('comm','Comisión de plataforma (%)',f.comm)}</div>
+    <p class="fine">Multiplicadores por categoría: Económico ×1.00 · Confort ×1.35 · XL ×1.70. Los cambios aplican a viajes nuevos.</p>
+    <div><button class="btn primary" data-act="fares-save">Guardar tarifas</button></div></div>
+    <div class="preview" id="tf-preview"></div></div>`;
+}
+function readFares(){const g=id=>Math.max(0,Number($('#tf-'+id).value)||0);return {base:g('base'),km:g('km'),min:g('min'),minFare:g('minFare'),comm:Math.min(50,g('comm'))};}
+function faresPreview(){
+  const el=$('#tf-preview'); if(!el) return;
+  const vals=readFares(), keep=S.fares; S.fares=vals;
+  const a=P.piantini,b=P.colonial;
+  el.innerHTML=`<span class="eyebrow">Vista previa · Piantini → Zona Colonial</span><span class="muted">${plen(route(a,b)).toFixed(1)} km · ${estimate(a,b,'eco').min} min</span>`+Object.keys(CATS).map(k=>`<div><span>${CATS[k].name}</span><b>${money(estimate(a,b,k).fare)}</b></div>`).join('')+`<div><span class="muted">Conductor recibe en Económico</span><b>${money(estimate(a,b,'eco').fare*(1-vals.comm/100))}</b></div>`;
+  S.fares=keep;
+}
+function alertsHTML(){
+  const a=S.alerts.filter(x=>!x.resolved).slice(0,6);
+  if(!a.length) return '<p class="muted" style="font-size:13px">Sin alertas abiertas.</p>';
+  return a.map(x=>`<div class="alert ${x.type}"><div><b>${esc(x.title)}</b><small>${clock(x.t)} · ${esc(x.text)}</small></div><button class="btn ghost sm" data-act="alert-ok" data-arg="${x.id}">${x.type==='sos'?'Atendida':'Entendido'}</button></div>`).join('');
+}
+let lastFleet='',lastFtab='';
+function renderFleet(force){
+  $('#kpis').innerHTML=kpis();
+  const ak=S.alerts.map(a=>a.id+a.resolved).join(); if(force||ak!==$('#alerts').dataset.k){$('#alerts').innerHTML=alertsHTML();$('#alerts').dataset.k=ak;}
+  const fk=String(S.feed.length+(S.feed[0]?.t||0)); if(force||fk!==$('#feed').dataset.k){$('#feed').innerHTML=S.feed.slice(0,30).map(f=>`<p><time>${clock(f.t)}</time><span>${esc(f.text)}</span></p>`).join('');$('#feed').dataset.k=fk;}
+  const box=$('#ftab');
+  if(S.ftab==='fares'){ if(force||lastFtab!=='fares'){box.innerHTML=faresHTML();faresPreview();} lastFtab='fares'; return; }
+  const html=S.ftab==='veh'?vehRows():S.ftab==='drv'?drvRows():S.ftab==='trips'?tripRows():corpRows();
+  if(force||html!==lastFleet||lastFtab!==S.ftab){box.innerHTML=html;lastFleet=html;}
+  lastFtab=S.ftab;
+}
+
+let mode='app';
+function setMode(m){
+  mode=m; $('#app').hidden=m!=='app'; $('#fleet').hidden=m!=='fleet';
+  document.body.classList.toggle('app-mode',m==='app');
+  try{ if(m==='fleet'&&location.hash!=='#flota') history.replaceState(null,'','#flota');
+       if(m==='app'&&location.hash==='#flota') history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  if(m==='fleet'){closeMenu();closePage();renderFleet(true);window.scrollTo(0,0);} else {camReset();renderApp(true);}
+}
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+
+const A={
+  start:v=>{S.start=v||null;},
+  login:v=>{const [r,id]=v.split(':');login(r,id);},
+  logout:()=>{closeMenu();logout();},
+  menu:()=>openMenu(),
+  'menu-close':()=>closeMenu(),
+  page:k=>openPage(k),
+  'page-close':()=>closePage(),
+  switch:()=>{closeMenu();const to=S.role==='pax'?'drv':'pax';if(logout())S.start=to;},
+  'go-fleet':()=>setMode('fleet'),
+  'go-app':()=>setMode('app'),
+  reset:()=>{closeMenu();closePage();init();camReset();renderApp(true);if(mode==='fleet')renderFleet(true);toast('Demo reiniciada con los datos de ejemplo');},
+  'pax-dest':id=>{S.pax.to=id;S.pax.q='';},
+  'pax-change':()=>{S.pax.to=null;},
+  'pax-cat':k=>{S.pax.cat=k;},
+  'pax-pay':k=>{S.pax.pay=k;if(S.page==='wallet'){$('#page').innerHTML=pageHTML('wallet');toast('Forma de pago actualizada');}},
+  'pax-request':()=>{const p=S.pax,prof=PAX[S.who];const t=createTrip({paxId:prof.id,paxName:prof.name,from:P[p.from],to:P[p.to],cat:p.cat,pay:p.pay,corp:p.pay==='corp'?prof.corp:null});p.tripId=t.id;p.rating=5;p.tip=0;},
+  'pax-retry':()=>{const o=paxTrip();const t=createTrip({paxId:o.paxId,paxName:o.paxName,from:o.from,to:o.to,cat:o.cat,pay:o.pay,corp:o.corp});S.pax.tripId=t.id;},
+  'pax-cancel':()=>{const t=paxTrip(); if(t&&t.status!=='ongoing') cancelTrip(t,'el pasajero');},
+  'pax-done':()=>{S.pax.tripId=null;},
+  'pax-share':()=>toast('Seguimiento en vivo compartido (simulado)'),
+  'pax-sos':()=>{const t=paxTrip(),d=drv(t.driverId);addAlert('sos',`SOS · viaje ${t.id}`,`${t.paxName} con ${d.name} (${veh(d).plate}) cerca de ${t.status==='ongoing'?'ruta a '+t.to.name:t.from.name}`);log(`SOS activado en ${t.id}`);toast('Alerta enviada a la central de la flota');},
+  'pax-star':n=>{S.pax.rating=+n;},
+  'pax-tip':n=>{S.pax.tip=+n;},
+  'pax-finish':()=>{const t=paxTrip(),d=drv(t.driverId),p=S.pax;t.rating=p.rating;t.tip=t.pay==='cash'?0:p.tip;d.rating=(d.rating*200+p.rating)/201;
+    if(t.tip){d.earn+=t.tip;d.balance-=t.tip;log(`Propina de ${money(t.tip)} para ${first(d.name)} (${t.id})`);}
+    p.tripId=null;p.to=null;p.from=t.to.id;camReset();toast('Gracias por calificar');},
+  'drv-online':()=>{const d=drv(S.ctrl);if(veh(d).maint)return toast('Tu vehículo está en el taller');d.online=true;d.status='idle';S.nextMine=now()+4000;log(`${first(d.name)} se conectó`);},
+  'drv-offline':()=>{const d=drv(S.ctrl);if(d.status!=='idle')return;d.online=false;log(`${first(d.name)} se desconectó`);},
+  'drv-accept':id=>{const t=trip(id),d=drv(S.ctrl);if(t&&t.status==='searching'&&t.offerTo===d.id)accept(d,t);},
+  'drv-reject':id=>{const t=trip(id),d=drv(S.ctrl);if(t&&t.offerTo===d.id){t.rejected.push(d.id);t.offerTo=null;S.nextMine=now()+rand(7000,11000);log(`${first(d.name)} rechazó ${t.id}`);}},
+  'drv-start':()=>{const d=drv(S.ctrl),t=trip(d.tripId),v=($('#drv-pin').value||'').trim();
+    if(v!==t.pin){$('#drv-pin-msg').textContent=v.length<4?'Escribe los 4 dígitos del PIN.':'El PIN no coincide. Pídeselo de nuevo al pasajero.';return;}
+    startTrip(d,t);},
+  'drv-finish':()=>{const d=drv(S.ctrl),t=trip(d.tripId);if(d.atDest)completeTrip(d,t);},
+  'drv-call':()=>toast('Llamada con número enmascarado (simulada)'),
+  ftab:k=>{S.ftab=k;document.querySelectorAll('#subtabs button').forEach(b=>b.classList.toggle('on',b.dataset.arg===k));renderFleet(true);},
+  'veh-maint':id=>{const v=S.vehicles.find(x=>x.id===id),d=S.drivers.find(x=>x.vid===id);
+    if(d&&d.status!=='idle')return toast('Espera a que termine el viaje en curso');
+    v.maint=true;if(d)d.online=false;log(`${v.plate} enviado al taller`);renderFleet(true);toast(`${v.plate} en taller; su conductor quedó desconectado`);},
+  'veh-return':id=>{const v=S.vehicles.find(x=>x.id===id);v.maint=false;v.next=Math.ceil((v.odo+5000)/1000)*1000;v.alerted=false;
+    S.alerts.forEach(a=>{if(a.type==='maint'&&a.title.includes(v.plate))a.resolved=true;});log(`${v.plate} volvió a servicio`);renderFleet(true);toast(`${v.plate} listo. Próximo servicio a ${v.next.toLocaleString('en-US')} km`);},
+  'pay-open':id=>{S.modal=id;const d=drv(id),m=$('#modal');
+    m.innerHTML=`<div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pm-t"><h3 id="pm-t">Registrar pago</h3><p class="muted">${esc(d.name)} · ${d.balance>0?'debe '+money(d.balance):'saldo a favor '+money(-d.balance)}</p>
+      <label class="field"><span class="lbl">Monto (RD$)</span><input id="pm-amt" type="number" min="1" step="1" value="${Math.max(0,Math.round(d.balance))||''}"></label>
+      <label class="field"><span class="lbl">Método</span><select id="pm-met"><option>Efectivo en oficina</option><option>Transferencia bancaria</option><option>Descuento de liquidación</option></select></label>
+      <p class="err" id="pm-err"></p>
+      <div class="row-actions"><button class="btn ghost" data-act="pay-close">Cancelar</button><button class="btn primary" data-act="pay-save">Guardar pago</button></div></div>`;
+    m.hidden=false;$('#pm-amt').focus();},
+  'pay-close':()=>{$('#modal').hidden=true;S.modal=null;},
+  'pay-save':()=>{const d=drv(S.modal),amt=Number($('#pm-amt').value);if(!(amt>0)){$('#pm-err').textContent='Escribe un monto mayor que cero.';return;}
+    d.balance-=amt;log(`Pago de ${money(amt)} de ${first(d.name)} · ${$('#pm-met').value}`);$('#modal').hidden=true;S.modal=null;renderFleet(true);toast(`Pago de ${money(amt)} registrado`);},
+  'alert-ok':id=>{const a=S.alerts.find(x=>x.id===id);if(a)a.resolved=true;renderFleet(true);},
+  'fares-save':()=>{S.fares=readFares();log(`Tarifas actualizadas · base ${money(S.fares.base)}, ${money(S.fares.km)}/km, comisión ${S.fares.comm}%`);toast('Tarifas guardadas. Aplican a viajes nuevos.');},
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled) return;
+  const f=A[b.dataset.act]; if(f){f(b.dataset.arg);if(mode==='app')renderApp();}
+});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')A['pay-close']();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){if(!$('#modal').hidden)A['pay-close']();else if(S.page)closePage();else if(S.menu)closeMenu();}
+  if(e.key==='Enter'&&e.target.id==='drv-pin'){A['drv-start']();renderApp();}
+});
+document.addEventListener('input',e=>{
+  const id=e.target.id;
+  if(id==='pax-q'){S.pax.q=e.target.value;$('#pax-sugg').innerHTML=suggHTML();}
+  if(id&&id.startsWith('tf-'))faresPreview();
+  if(id==='drv-pin'){e.target.value=e.target.value.replace(/\D/g,'').slice(0,4);$('#drv-pin-msg').textContent='';}
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='pax-from'){S.pax.from=e.target.value;camReset();renderApp(true);}
+});
+window.addEventListener('hashchange',()=>setMode(location.hash==='#flota'?'fleet':'app'));
+
+init(); readTokens(); setMode(location.hash==='#flota'?'fleet':'app');
+let last=performance.now(), tokT=0, fleetT=0;
+function loop(ts){
+  const dt=Math.min(0.1,Math.max(0,(ts-last)/1000)); last=ts;
+  tick(dt);
+  tokT+=dt; if(tokT>0.6){tokT=0;readTokens();}
+  if(mode==='app'){ renderApp(); if(!S.page) appMap(dt); }
+  else {
+    fleetMap();
+    fleetT+=dt; if(fleetT>1){fleetT=0; const a=document.activeElement; if(!S.modal&&!(a&&a.closest&&a.closest('#ftab'))) renderFleet(); else $('#kpis').innerHTML=kpis();}
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>
